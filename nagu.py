@@ -36,11 +36,13 @@ FG_COLORS = {
 }
 
 BG_COLORS = dict((c+10, n) for c, n in FG_COLORS.items())
-DEFAULT_COLORS = {39: "", 49: ""}
+DEFAULT_COLORS = {39: 0, 49: 1}
 COLORS = dict(FG_COLORS.items() + BG_COLORS.items()
         + DEFAULT_COLORS.items())
-COLORS_INDEX = dict(enumerate(FG_COLORS.keys() + BG_COLORS.keys()))
-COLORS_INDEX_R = dict(((v, k) for k, v in COLORS_INDEX.items()))
+COLORS_INDEX = (dict(enumerate(FG_COLORS.keys())), dict(enumerate(BG_COLORS.keys())))
+COLORS_INDEX_R = {}
+for b in COLORS_INDEX:
+    COLORS_INDEX_R.update(dict((v, k) for k, v in b.items()))
 
 STYLES = (
     "color: {0};",
@@ -63,24 +65,26 @@ COLOR_LEN = COLOR_SIZE - 1
 COLORS_DATA = COLOR_SIZE * 2
 FIRST_MOD = COLOR_SHIFT * 2
 for k in MODS.keys():
+    offset = FIRST_MOD - 1
     if MODS[k] < 0:
-        MODS[k] -= FIRST_MOD + 1
+        MODS[k] -= offset
     elif MODS[k] > 0:
-        MODS[k] += FIRST_MOD - 1
+        MODS[k] += offset
 LAST_MOD = max(MODS.values())+1
 
 def get_color(num):
     fg, bg = num & COLOR_LEN, (num >> COLOR_SHIFT) & COLOR_LEN
     out = ''
     for i, c in enumerate((fg, bg)):
-        color = COLORS[COLORS_INDEX[c]]
-        out += STYLES[i].format(color) if c else ''
+        idx = COLORS_INDEX[i][c]
+        if idx not in DEFAULT_COLORS and c:
+            out += STYLES[i].format(COLORS[idx])
     return out
 
 def pack_color(c, mod):
     if c in DEFAULT_COLORS:
-        mod &= ~(COLORS_DATA - 1)
-    else:
+        mod &= ~(COLOR_LEN << (DEFAULT_COLORS[c] * COLOR_SHIFT))
+    elif c in COLORS_INDEX_R:
         shift = 0 if c in FG_COLORS else COLOR_SHIFT
         mod &= ~(COLOR_LEN << shift)
         mod |= (COLORS_INDEX_R[c] & COLOR_LEN) << shift
@@ -91,12 +95,17 @@ def pack(m, mod):
         return pack_color(m, mod)
     shift = MODS.get(m, 0)
     if shift > 0:
-        mod |= 1 << shift + FIRST_MOD
+        mod |= 1 << shift
     elif shift < 0:
-        mod &= ~(1 << -shift - FIRST_MOD)
+        mod &= ~(1 << -shift)
     return mod
 
 MOD = 0
+def reset(r=None):
+    global MOD
+    MOD = 0
+    return r
+
 def sequence(seq):
     global MOD
     seqs = list(set(unicode(seq).split(';')))
@@ -104,9 +113,7 @@ def sequence(seq):
     if not len(mods):
         return ''
     if 0 in mods:
-        ret = '</span>' if MOD else ''
-        MOD = 0
-        return ret
+        return reset('</span>' if MOD else '')
     styles = []
     if MOD:
         styles.append('</span>')
