@@ -108,7 +108,7 @@ def reset(r=None):
 
 def sequence(seq):
     global MOD
-    seqs = list(set(unicode(seq).split(';')))
+    seqs = list(set(str(seq).split(';')))
     mods = [int(x) for x in seqs if x.isdigit()]
     if not len(mods):
         return ''
@@ -133,7 +133,7 @@ def parse_line(text):
        if text[char] == '\033':
            char += 2
            esc = ''
-           while text[char] != 'm' and char < length:
+           while char < length and text[char] != 'm':
                if len(esc) > 20:
                    break
                esc += text[char]
@@ -145,7 +145,9 @@ def parse_line(text):
            yield text[char-1]
 
 def html(text):
-    lines = text.splitlines()
+    lines = text
+    if isinstance(lines, basestring):
+        lines = lines.splitlines()
     out = '<br />'.join([''.join([s for s in parse_line(l)]) \
             for l in lines])
     return out+sequence('0');
