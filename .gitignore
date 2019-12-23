@@ -54,3 +54,7 @@ docs/_build/
 
 # vim
 *.swp
+
+# node
+node_modules/
+package-lock.json
